@@ -12,9 +12,10 @@ const $searchForm = $("#searchForm");
  *    (if no image URL given by API, put in a default image URL)
  */
 
-async function getShowsByTerm( /* term */) {
+async function getShowsByTerm(term) {
   // ADD: Remove placeholder & make request to TVMaze search shows API.
-
+  let searchVar = await axios.get(`https://api.tvmaze.com/search/shows?q=${term}`);
+  return searchVar.data;
   return [
     {
       id: 1767,
@@ -34,6 +35,10 @@ async function getShowsByTerm( /* term */) {
     }
   ];
 }
+async function getEpisodes(id){
+  let episodesResult = await axios.get(`https://api.tvmaze.com/shows/${id}/episodes`);
+  return episodesResult.data;
+}
 
 
 /** Given list of shows, create markup for each and to DOM */
@@ -42,25 +47,36 @@ function populateShows(shows) {
   $showsList.empty();
 
   for (let show of shows) {
+    let newImage;
+    if(!show.show.image){
+      newImage = 'http://static.tvmaze.com/uploads/images/medium_portrait/147/369403.jpg';
+    } else{
+      newImage = show.show.image.original;
+    }
     const $show = $(
-      `<div data-show-id="${show.id}" class="Show col-md-12 col-lg-6 mb-4">
+      `<div data-show-id="show${show.show.id}" class="Show col-md-12 col-lg-6 mb-4">
          <div class="media">
            <img
-              src="http://static.tvmaze.com/uploads/images/medium_portrait/160/401704.jpg"
+              src="${newImage}"
               alt="Bletchly Circle San Francisco"
               class="w-25 me-3">
            <div class="media-body">
-             <h5 class="text-primary">${show.name}</h5>
-             <div><small>${show.summary}</small></div>
-             <button class="btn btn-outline-light btn-sm Show-getEpisodes">
+             <h5 class="text-primary">${show.show.name}</h5>
+             <div><small>${show.show.summary}</small></div>
+             <button id="${show.show.id}" class="btn btn-outline-light btn-sm Show-getEpisodes">
                Episodes
              </button>
            </div>
          </div>
        </div>
       `);
+      $showsList.append($show);
+      let newBtn = $(`#${show.show.id}`).get(0);
+      newBtn.addEventListener('click',async function(evt){
+        let episodes = await getEpisodes(evt.target.id);
+        MakeEpisodeData(episodes);
+      })
 
-    $showsList.append($show);
   }
 }
 
@@ -81,6 +97,19 @@ $searchForm.on("submit", async function (evt) {
   evt.preventDefault();
   await searchForShowAndDisplay();
 });
+
+function MakeEpisodeData(episodes){
+  const list = $("#episodesList").get(0);
+  list.innerHTML="";
+  for (let episode of episodes){
+    const $newLi = document.createElement("li");
+    $newLi.innerHTML = episode.name;
+    //$(`<li>${episode.name}</li>`);
+    console.log($newLi);
+    list.append($newLi);
+    $episodesArea.show();
+  }
+}
 
 
 /** Given a show ID, get from API and return (promise) array of episodes:
